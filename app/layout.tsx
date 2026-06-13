@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Uncross",
-  description: "Uncross",
+  title: "Datum",
+  description: "Datum",
 };
 
 export default function RootLayout({
@@ -36,7 +36,7 @@ export default function RootLayout({
                 letterSpacing: "0.05em",
               }}
             >
-              uncross
+              datum
             </span>
           </div>
         </header>
