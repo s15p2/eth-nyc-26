@@ -9,9 +9,6 @@ function formatPrice(num: number) {
   return num.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
-function formatSize(num: number) {
-  return Math.round(num).toString();
-}
 
 function buildFullBook(bids: Order[], asks: Order[], sideLevels: number = 15) {
   if (bids.length === 0 || asks.length === 0) return [];
@@ -115,6 +112,8 @@ export default function EthOrderBookHorizontal() {
               const highlight = highlightedTrades.find(
                 (t) => Math.abs(t.price - level.price) < 1e-6
               );
+              const bidSize = Math.round(level.bidSize);
+              const askSize = Math.round(level.askSize);
               return (
                 <div
                   key={i}
@@ -128,9 +127,9 @@ export default function EthOrderBookHorizontal() {
                 >
                   <span
                     className={
-                      level.bidSize > 0
+                      bidSize > 0
                         ? "text-green-400 text-xs font-mono"
-                        : level.askSize > 0
+                        : askSize > 0
                         ? "text-red-400 text-xs font-mono"
                         : "text-gray-500 text-xs font-mono"
                     }
@@ -139,18 +138,14 @@ export default function EthOrderBookHorizontal() {
                   </span>
                   <span
                     className={
-                      level.bidSize > 0
+                      bidSize > 0
                         ? "text-green-400 text-xs font-mono"
-                        : level.askSize > 0
+                        : askSize > 0
                         ? "text-red-400 text-xs font-mono"
                         : "text-gray-500 text-xs font-mono"
                     }
                   >
-                    {level.bidSize > 0
-                      ? formatSize(level.bidSize)
-                      : level.askSize > 0
-                      ? formatSize(level.askSize)
-                      : "0"}
+                    {bidSize > 0 ? bidSize : askSize > 0 ? askSize : "0"}
                   </span>
                 </div>
               );
