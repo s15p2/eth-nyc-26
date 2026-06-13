@@ -23,11 +23,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="antialiased bg-[#232323] text-[#dcd5dd]">
+        <header className="flex justify-between items-center p-6">
+          <div style={{ left: "2em", position: "relative" }}>
+            <span
+              style={{
+                fontFamily: "Times New Roman, Times, serif",
+                fontStyle: "italic",
+                fontWeight: 700,
+                fontSize: "2.5rem",
+                letterSpacing: "0.05em",
+              }}
+            >
+              uncross
+            </span>
+          </div>
+        </header>
+        {children}
+      </body>
     </html>
   );
 }
