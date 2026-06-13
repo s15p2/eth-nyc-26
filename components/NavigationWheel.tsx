@@ -15,38 +15,38 @@ interface Segment {
 
 const segments: Segment[] = [
   {
-    id: "auction",
-    label: "Auction",
-    number: "01",
-    color: "from-[#dcd5dd] to-[#dcd5dd]",
-    route: "/auction",
-    description: "Submit limit orders to the daily institutional rebalancing auction. Orders that cross match privately — no information leakage, no market impact.",
-    width: 1,
-  },
-  {
-    id: "liquidity",
-    label: "Liquidity",
-    number: "02",
-    color: "from-[#595759] to-[#595759]",
-    route: "/liquidity",
-    description: "Provide guaranteed execution liquidity as a backstop for unmatched auction flow. Earn fees for filling residual institutional order flow.",
-    width: 3,
-  },
-  {
     id: "learn",
     label: "Learn",
-    number: "03",
+    number: "01",
     color: "from-[#dcd5dd] to-[#dcd5dd]",
     route: "/learn",
     description: "Read our docs on confidential order matching and Canton-powered privacy.",
     width: 1,
   },
   {
-    id: "govern",
-    label: "Govern",
+    id: "auction",
+    label: "Auction",
+    number: "02",
+    color: "from-[#595759] to-[#595759]",
+    route: "/auction",
+    description: "Submit limit orders to the daily institutional rebalancing auction. Orders that cross match privately — no information leakage, no market impact.",
+    width: 3,
+  },
+  {
+    id: "stats",
+    label: "Stats",
+    number: "03",
+    color: "from-[#dcd5dd] to-[#dcd5dd]",
+    route: "/stats",
+    description: "View auction statistics and historical clearing prices.",
+    width: 1,
+  },
+  {
+    id: "partners",
+    label: "Partners",
     number: "04",
     color: "from-[#dcd5dd] to-[#dcd5dd]",
-    route: "/",
+    route: "/partners",
     description: "Coming soon.",
     width: 1,
   },
@@ -83,7 +83,7 @@ export default function NavigationWheel() {
   return (
     <div className="flex items-start justify-center pt-8 pb-16 bg-[#232323]">
       <div className="relative w-full max-w-6xl">
-        <div className="relative w-full h-96 bg-gradient-to-r from-gray-900 to-gray-800 rounded-3xl overflow-hidden">
+        <div className="relative w-full h-96 bg-linear-to-r from-gray-900 to-gray-800 rounded-3xl overflow-hidden">
           <div className="absolute inset-0 flex">
             {segments.map((segment, index) => {
               const isHovered = hoveredSegment === segment.id;
@@ -99,7 +99,7 @@ export default function NavigationWheel() {
                   onClick={() => handleSegmentClick(segment.route)}
                 >
                   <div
-                    className={`absolute inset-0 bg-gradient-to-b ${segment.color} transition-all duration-300 ease-out ${
+                    className={`absolute inset-0 bg-linear-to-b ${segment.color} transition-all duration-300 ease-out ${
                       isHovered ? "scale-110 z-10 shadow-2xl" : "scale-100"
                     }`}
                     style={{
