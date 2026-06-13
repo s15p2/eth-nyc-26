@@ -39,21 +39,24 @@ export default function AuctionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#232323] text-[#dcd5dd]">
+    <div
+      className="flex flex-col bg-[#232323] text-[#dcd5dd]"
+      style={{ height: "calc(95vh - 88px)" }}
+    >
       {/* Order book */}
-      <div className="-mt-5">
+      <div className="-mt-5 shrink-0">
         <EthOrderBookHorizontal />
       </div>
 
-      {/* Chart + Order form */}
-      <div className="grid grid-cols-3 gap-4 px-6 pb-4">
-        {/* Chart */}
-        <div className="col-span-2 h-[420px] rounded-xl overflow-hidden border border-[#3a3a3a]">
+      {/* Chart + Order form — grows to fill remaining space */}
+      <div className="flex-1 min-h-0 grid grid-cols-3 gap-4 px-6 py-3">
+        {/* Chart fills full height of this row */}
+        <div className="col-span-2 rounded-xl overflow-hidden border border-[#3a3a3a]">
           <TradingViewChart />
         </div>
 
         {/* Order form */}
-        <div className="col-span-1 bg-[#2a2a2a] rounded-xl border border-[#3a3a3a] p-5 flex flex-col gap-4">
+        <div className="col-span-1 bg-[#2a2a2a] rounded-xl border border-[#3a3a3a] p-5 flex flex-col gap-4 overflow-y-auto">
           <h2 className="text-xs font-mono font-bold tracking-widest text-[#dcd5dd] uppercase">
             Place Limit Order
           </h2>
@@ -115,9 +118,7 @@ export default function AuctionPage() {
 
             <div className="flex justify-between items-center py-2 border-t border-[#3a3a3a]">
               <span className="text-xs font-mono text-[#888]">Total</span>
-              <span className="text-sm font-mono text-[#dcd5dd]">
-                ${total}
-              </span>
+              <span className="text-sm font-mono text-[#dcd5dd]">${total}</span>
             </div>
 
             <button
@@ -134,14 +135,14 @@ export default function AuctionPage() {
         </div>
       </div>
 
-      {/* Auction details + User orders */}
-      <div className="grid grid-cols-2 gap-4 px-6 pb-8">
+      {/* Auction details + User orders — fixed height at bottom */}
+      <div className="shrink-0 grid grid-cols-2 gap-4 px-6 pb-4" style={{ height: "180px" }}>
         {/* Auction details */}
-        <div className="bg-[#2a2a2a] rounded-xl border border-[#3a3a3a] p-5">
-          <h2 className="text-xs font-mono font-bold tracking-widest text-[#dcd5dd] uppercase mb-4">
+        <div className="bg-[#2a2a2a] rounded-xl border border-[#3a3a3a] p-4">
+          <h2 className="text-xs font-mono font-bold tracking-widest text-[#dcd5dd] uppercase mb-3">
             Auction Details
           </h2>
-          <div className="grid grid-cols-2 gap-y-3">
+          <div className="grid grid-cols-2 gap-y-2">
             {[
               ["Status", "Inactive"],
               ["Round", "—"],
@@ -157,8 +158,8 @@ export default function AuctionPage() {
         </div>
 
         {/* User orders */}
-        <div className="bg-[#2a2a2a] rounded-xl border border-[#3a3a3a] p-5">
-          <h2 className="text-xs font-mono font-bold tracking-widest text-[#dcd5dd] uppercase mb-4">
+        <div className="bg-[#2a2a2a] rounded-xl border border-[#3a3a3a] p-4 overflow-y-auto">
+          <h2 className="text-xs font-mono font-bold tracking-widest text-[#dcd5dd] uppercase mb-3">
             Your Orders
           </h2>
           {orders.length === 0 ? (
@@ -185,9 +186,7 @@ export default function AuctionPage() {
                     </td>
                     <td className="text-right py-1.5">${o.price}</td>
                     <td className="text-right py-1.5">{o.quantity}</td>
-                    <td className="text-right py-1.5 text-[#888]">
-                      {o.placedAt}
-                    </td>
+                    <td className="text-right py-1.5 text-[#888]">{o.placedAt}</td>
                   </tr>
                 ))}
               </tbody>
