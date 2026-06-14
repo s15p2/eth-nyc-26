@@ -57,8 +57,8 @@ export default function AuctionPage() {
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [userId, setUserId] = useState("");
-  const [walletAddress, setWalletAddress] = useState("");
+  const USER_ID = "ETH_NYC_TRADER";
+  const WALLET_ADDRESS = "0xa3f8b2c1d4e97605f3a2b8c4d1e6f0a9b5c3d7e2";
   const [orders, setOrders] = useState<SubmittedOrder[]>([]);
   const [auctionStatus, setAuctionStatus] = useState<AuctionStatus | null>(null);
   const [auctionResult, setAuctionResult] = useState<AuctionResult | null>(null);
@@ -181,8 +181,8 @@ export default function AuctionPage() {
           side,
           price: parseFloat(price),
           quantity: parseFloat(quantity),
-          user_id: userId || "anonymous",
-          wallet_address: walletAddress || "0x000",
+          user_id: USER_ID,
+          wallet_address: WALLET_ADDRESS,
         }),
       });
       const data = await res.json();
@@ -223,23 +223,6 @@ export default function AuctionPage() {
           <h2 className="text-xs font-mono font-bold tracking-widest uppercase">
             Place Limit Order
           </h2>
-
-          <div className="flex flex-col gap-2">
-            <input
-              type="text"
-              placeholder="User ID"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg px-3 py-1.5 text-xs font-mono text-[#dcd5dd] placeholder-[#555] focus:outline-none focus:border-[#595759]"
-            />
-            <input
-              type="text"
-              placeholder="Wallet (0x...)"
-              value={walletAddress}
-              onChange={(e) => setWalletAddress(e.target.value)}
-              className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg px-3 py-1.5 text-xs font-mono text-[#dcd5dd] placeholder-[#555] focus:outline-none focus:border-[#595759]"
-            />
-          </div>
 
           <div className="flex rounded-lg overflow-hidden border border-[#3a3a3a]">
             <button
