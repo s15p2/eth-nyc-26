@@ -36,6 +36,14 @@ interface Trade {
   seller_wallet: string;
 }
 
+interface CantonResponse {
+  transactionId?: string;
+  updateId?: string;
+  completionOffset?: number;
+  createdContracts?: Record<string, string>;
+  status?: string;
+}
+
 interface AuctionResult {
   auction_id: string;
   clearing_price: number;
@@ -43,6 +51,10 @@ interface AuctionResult {
   closed_at: string;
   trades: Trade[];
   unmatched: ApiOrder[];
+  settlement?: {
+    instructions: unknown[];
+    canton_response: CantonResponse;
+  } | null;
 }
 
 interface SubmittedOrder {
@@ -354,6 +366,37 @@ export default function AuctionPage() {
                   </tbody>
                 </table>
               )}
+              {(() => {
+                const cr = auctionResult.settlement?.canton_response;
+                if (!cr?.transactionId) return null;
+                const txId = cr.transactionId;
+                const shortTx = `${txId.slice(0, 10)}…${txId.slice(-6)}`;
+                return (
+                  <div className="mt-3 pt-3 border-t border-[#3a3a3a]">
+                    <p className="text-xs font-mono font-bold tracking-widest uppercase text-[#888] mb-2">
+                      Canton Settlement
+                    </p>
+                    <div className="flex flex-col gap-1 text-xs font-mono">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-[#888] shrink-0">Tx ID</span>
+                        <span className="text-[#a78bfa] truncate" title={txId}>{shortTx}</span>
+                      </div>
+                      {cr.completionOffset !== undefined && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-[#888] shrink-0">Offset</span>
+                          <span className="text-[#dcd5dd]">{cr.completionOffset}</span>
+                        </div>
+                      )}
+                      {cr.createdContracts && Object.entries(cr.createdContracts).map(([tmpl, cid]) => (
+                        <div key={tmpl} className="flex justify-between gap-2">
+                          <span className="text-[#888] shrink-0 truncate">{tmpl.split(":").pop()}</span>
+                          <span className="text-[#dcd5dd] truncate" title={cid}>{`${cid.slice(0, 8)}…`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           ) : (
             <>

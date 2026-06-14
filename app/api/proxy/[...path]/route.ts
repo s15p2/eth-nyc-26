@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE =
-  "http://matching-engine-env.eba-mgf4rpvy.us-east-1.elasticbeanstalk.com";
+  "http://matching-engine-v2.eba-cw283mxe.us-east-1.elasticbeanstalk.com";
 
 export async function GET(
   req: NextRequest,

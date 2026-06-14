@@ -22,6 +22,12 @@ interface AuctionStatus {
   sell_orders: ApiOrder[];
 }
 
+interface CantonResponse {
+  transactionId?: string;
+  completionOffset?: number;
+  createdContracts?: Record<string, string>;
+}
+
 interface AuctionResult {
   auction_id: string;
   clearing_price: number;
@@ -29,6 +35,7 @@ interface AuctionResult {
   closed_at: string;
   trades: { trade_id: string; quantity: number; price: number }[];
   unmatched: ApiOrder[];
+  settlement?: { canton_response: CantonResponse } | null;
 }
 
 interface PriceLevel {
@@ -162,10 +169,10 @@ export default function InternalsPage() {
   }, [book]);
 
   return (
-    <div className="overflow-hidden bg-[#232323] text-[#dcd5dd] px-8 py-6" style={{ height: "calc(100vh - 88px)" }}>
+    <div className="flex flex-col overflow-hidden bg-[#232323] text-[#dcd5dd] px-8 py-6" style={{ height: "calc(100vh - 88px)" }}>
       {/* Disclaimer banner */}
       {!disclaimerDismissed && (
-        <div className="flex items-center justify-between gap-4 mb-4 px-4 py-3 rounded-lg bg-[#2a2a2a] border border-[#595759]">
+        <div className="shrink-0 flex items-center justify-between gap-4 mb-4 px-4 py-3 rounded-lg bg-[#2a2a2a] border border-[#595759]">
           <p className="text-xs font-mono text-[#aaa]">
             <span className="text-[#dcd5dd] font-bold">Demo only.</span>{" "}
             This view of internal auction order flow is for demonstration purposes only and would not be publicly available in production. In a live system, order details remain confidential until settlement.
@@ -181,7 +188,7 @@ export default function InternalsPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="shrink-0 flex items-start justify-between mb-8">
         <div>
           <h1 className="text-xs font-mono font-bold tracking-widest uppercase text-[#888] mb-1">
             Active Auction Internals
@@ -233,7 +240,7 @@ export default function InternalsPage() {
 
       {/* Order book */}
       {!status || !isOpen ? (
-        <div className="flex flex-col items-center justify-center h-64 gap-6">
+        <div className="flex-1 flex flex-col items-center justify-center gap-6">
           {result ? (
             <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-2xl px-12 py-8 flex flex-col items-center gap-4">
               <div className="text-xs font-mono text-[#888] uppercase tracking-widest">
@@ -260,6 +267,37 @@ export default function InternalsPage() {
                   timeStyle: "long",
                 })}
               </div>
+              {(() => {
+                const cr = result.settlement?.canton_response;
+                if (!cr?.transactionId) return null;
+                return (
+                  <div className="mt-4 pt-4 border-t border-[#3a3a3a] w-full flex flex-col gap-2">
+                    <p className="text-xs font-mono text-[#888] uppercase tracking-widest text-center mb-1">
+                      Canton Settlement
+                    </p>
+                    <div className="flex justify-between gap-4 text-xs font-mono">
+                      <span className="text-[#888]">Transaction ID</span>
+                      <span className="text-[#a78bfa] font-bold" title={cr.transactionId}>
+                        {cr.transactionId.slice(0, 16)}…{cr.transactionId.slice(-8)}
+                      </span>
+                    </div>
+                    {cr.completionOffset !== undefined && (
+                      <div className="flex justify-between gap-4 text-xs font-mono">
+                        <span className="text-[#888]">Ledger Offset</span>
+                        <span className="text-[#dcd5dd]">{cr.completionOffset}</span>
+                      </div>
+                    )}
+                    {cr.createdContracts && Object.entries(cr.createdContracts).map(([tmpl, cid]) => (
+                      <div key={tmpl} className="flex justify-between gap-4 text-xs font-mono">
+                        <span className="text-[#888]">{tmpl.split(":").pop()}</span>
+                        <span className="text-[#dcd5dd]" title={cid}>
+                          {cid.slice(0, 12)}…{cid.slice(-6)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <div className="text-[#555] font-mono text-sm">
@@ -268,16 +306,16 @@ export default function InternalsPage() {
           )}
         </div>
       ) : (
-        <>
+        <div className="flex-1 min-h-0 flex flex-col">
           {crossingCount > 0 && (
-            <div className="mb-4 px-4 py-2 rounded-lg bg-yellow-900/30 border border-yellow-600/40 text-xs font-mono text-yellow-400">
+            <div className="shrink-0 mb-4 px-4 py-2 rounded-lg bg-yellow-900/30 border border-yellow-600/40 text-xs font-mono text-yellow-400">
               {crossingCount} price level{crossingCount !== 1 ? "s" : ""} crossing —
               orders will match at auction close.
             </div>
           )}
 
-          <div className="rounded-xl border border-[#3a3a3a] overflow-hidden">
-            <table className="w-full text-xs font-mono">
+          <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-[#3a3a3a] overflow-hidden">
+            <table className="shrink-0 w-full text-xs font-mono">
               <thead>
                 <tr className="bg-[#2a2a2a] border-b border-[#3a3a3a]">
                   <th className="text-right py-3 px-4 text-[#888] font-normal w-1/6">Users</th>
@@ -288,11 +326,10 @@ export default function InternalsPage() {
                 </tr>
               </thead>
             </table>
-            {/* Scrollable body — height fills remaining page space */}
+            {/* Scrollable body — grows to fill remaining flex space */}
             <div
               ref={tableScrollRef}
-              className="overflow-y-auto"
-              style={{ height: "calc(100vh - 300px)" }}
+              className="flex-1 min-h-0 overflow-y-auto"
             >
               <table className="w-full text-xs font-mono">
               <tbody>
@@ -352,7 +389,7 @@ export default function InternalsPage() {
               </table>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

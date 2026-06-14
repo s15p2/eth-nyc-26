@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+const API_BASE = "/api/proxy";
+
 interface Segment {
   id: string;
   label: string;
@@ -43,11 +45,11 @@ const segments: Segment[] = [
   },
   {
     id: "about",
-    label: "About",
+    label: "Settlement Block Scan",
     number: "04",
     color: "from-[#595759] to-[#595759]",
-    route: "/learn",
-    description: "Coming soon (click for docs).",
+    route: "https://canton-settlement-explorer.pages.dev/",
+    description: "View block scan of settled transactions.",
     width: 1,
   },
 ];
@@ -56,8 +58,29 @@ export default function NavigationWheel() {
   const router = useRouter();
   const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
 
-  const handleSegmentClick = (route: string) => {
-    router.push(route);
+  const handleSegmentClick = async (segment: Segment) => {
+    if (segment.id === "auction") {
+      try {
+        const res = await fetch(`${API_BASE}/auction/status`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status !== "open") {
+            await fetch(`${API_BASE}/auction/start`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ duration_minutes: 5 }),
+            });
+          }
+        }
+      } catch {
+        // silently fail — navigate regardless
+      }
+    }
+    if (segment.route.startsWith("http")) {
+      window.open(segment.route, "_blank");
+    } else {
+      router.push(segment.route);
+    }
   };
 
   const totalWidth = segments.reduce((sum, s) => sum + s.width, 0);
@@ -78,7 +101,7 @@ export default function NavigationWheel() {
                   style={{ width: `${segmentWidth}%` }}
                   onMouseEnter={() => setHoveredSegment(segment.id)}
                   onMouseLeave={() => setHoveredSegment(null)}
-                  onClick={() => handleSegmentClick(segment.route)}
+                  onClick={() => handleSegmentClick(segment)}
                 >
                   <div
                     className={`absolute inset-0 bg-linear-to-b ${segment.color} transition-all duration-300 ease-out ${
