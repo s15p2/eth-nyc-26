@@ -87,6 +87,7 @@ export default function InternalsPage() {
   const [localSeconds, setLocalSeconds] = useState<number | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [result, setResult] = useState<AuctionResult | null>(null);
+  const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
   const prevStatusRef = useRef<string | null>(null);
 
   const fetchResult = async () => {
@@ -161,7 +162,24 @@ export default function InternalsPage() {
   }, [book]);
 
   return (
-    <div className="h-screen overflow-hidden bg-[#232323] text-[#dcd5dd] px-8 py-6">
+    <div className="overflow-hidden bg-[#232323] text-[#dcd5dd] px-8 py-6" style={{ height: "calc(100vh - 88px)" }}>
+      {/* Disclaimer banner */}
+      {!disclaimerDismissed && (
+        <div className="flex items-center justify-between gap-4 mb-4 px-4 py-3 rounded-lg bg-[#2a2a2a] border border-[#595759]">
+          <p className="text-xs font-mono text-[#aaa]">
+            <span className="text-[#dcd5dd] font-bold">Demo only.</span>{" "}
+            This view of internal auction order flow is for demonstration purposes only and would not be publicly available in production. In a live system, order details remain confidential until settlement.
+          </p>
+          <button
+            onClick={() => setDisclaimerDismissed(true)}
+            className="shrink-0 text-[#555] hover:text-[#dcd5dd] text-lg font-mono transition-colors"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
