@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuctionSimulation } from "@/hooks/useAuctionSimulation";
 
-const API_BASE =
-  "http://matching-engine-env.eba-mgf4rpvy.us-east-1.elasticbeanstalk.com";
+const API_BASE = "/api/proxy";
 
 interface ApiOrder {
   order_id: string;

@@ -5,8 +5,7 @@ import EthOrderBookHorizontal from "@/components/EthOrderBookHorizontal";
 import TradingViewChart from "@/components/TradingViewChart";
 import { useAuctionSimulation } from "@/hooks/useAuctionSimulation";
 
-const API_BASE =
-  "http://matching-engine-env.eba-mgf4rpvy.us-east-1.elasticbeanstalk.com";
+const API_BASE = "/api/proxy";
 
 interface AuctionStatus {
   status: "open" | "closed" | "idle";

@@ -2,8 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-const API_BASE =
-  "http://matching-engine-env.eba-mgf4rpvy.us-east-1.elasticbeanstalk.com";
+const API_BASE = "/api/proxy";
 
 const INSTITUTIONS = [
   "Blackwater Capital", "Meridian Fund", "Atlas Asset Management",
@@ -44,7 +43,7 @@ function randn(mean: number, std: number) {
 }
 
 function randomPrice(side: "buy" | "sell"): number {
-  const mean = side === "buy" ? 1670 : 1690;
+  const mean = side === "buy" ? 1660 : 1700;
   const raw = randn(mean, 20);
   // Clamp to 5% of 1680 (1596–1764) and round to integer
   return Math.round(Math.max(1596, Math.min(1764, raw)));
