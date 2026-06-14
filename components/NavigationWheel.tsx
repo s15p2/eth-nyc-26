@@ -38,7 +38,7 @@ const segments: Segment[] = [
     number: "03",
     color: "from-[#dcd5dd] to-[#dcd5dd]",
     route: "/internals",
-    description: "Live view of all placed orders, crossing levels, and time remaining in the active auction.",
+    description: "Live view of all placed orders, crossing levels, and time remaining in the active auction (for demo purposes).",
     width: 3,
   },
   {
@@ -46,8 +46,8 @@ const segments: Segment[] = [
     label: "About",
     number: "04",
     color: "from-[#595759] to-[#595759]",
-    route: "/",
-    description: "Coming soon.",
+    route: "/learn",
+    description: "Coming soon (click for docs).",
     width: 1,
   },
 ];
