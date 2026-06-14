@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import EthOrderBookHorizontal from "@/components/EthOrderBookHorizontal";
 import TradingViewChart from "@/components/TradingViewChart";
+import { useAuctionSimulation } from "@/hooks/useAuctionSimulation";
 
 const API_BASE =
   "http://matching-engine-env.eba-mgf4rpvy.us-east-1.elasticbeanstalk.com";
@@ -125,6 +126,7 @@ export default function AuctionPage() {
   }, [localSeconds]);
 
   const isOpen = auctionStatus?.status === "open";
+  useAuctionSimulation(isOpen);
   const mins = localSeconds !== null ? Math.floor(localSeconds / 60) : 0;
   const secs = localSeconds !== null ? localSeconds % 60 : 0;
   const timeDisplay =

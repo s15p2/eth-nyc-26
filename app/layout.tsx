@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,17 +28,20 @@ export default function RootLayout({
       <body className="antialiased bg-[#232323] text-[#dcd5dd]">
         <header className="flex justify-between items-center p-6">
           <div style={{ left: "2em", position: "relative" }}>
-            <span
-              style={{
-                fontFamily: "Times New Roman, Times, serif",
-                fontStyle: "italic",
-                fontWeight: 700,
-                fontSize: "2.5rem",
-                letterSpacing: "0.05em",
-              }}
-            >
-              datum
-            </span>
+            <Link href="/">
+              <span
+                style={{
+                  fontFamily: "Times New Roman, Times, serif",
+                  fontStyle: "italic",
+                  fontWeight: 700,
+                  fontSize: "2.5rem",
+                  letterSpacing: "0.05em",
+                  cursor: "pointer",
+                }}
+              >
+                datum
+              </span>
+            </Link>
           </div>
         </header>
         {children}

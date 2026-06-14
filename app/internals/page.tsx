@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useAuctionSimulation } from "@/hooks/useAuctionSimulation";
 
 const API_BASE =
   "http://matching-engine-env.eba-mgf4rpvy.us-east-1.elasticbeanstalk.com";
@@ -22,6 +23,15 @@ interface AuctionStatus {
   sell_orders: ApiOrder[];
 }
 
+interface AuctionResult {
+  auction_id: string;
+  clearing_price: number;
+  matched_quantity: number;
+  closed_at: string;
+  trades: { trade_id: string; quantity: number; price: number }[];
+  unmatched: ApiOrder[];
+}
+
 interface PriceLevel {
   price: number;
   quantity: number;
@@ -38,8 +48,9 @@ interface BookRow {
 function aggregateLevels(orders: ApiOrder[]): PriceLevel[] {
   const map = new Map<number, { quantity: number; users: Set<string> }>();
   for (const o of orders) {
-    if (!map.has(o.price)) map.set(o.price, { quantity: 0, users: new Set() });
-    const lvl = map.get(o.price)!;
+    const price = Math.round(o.price / 10) * 10;
+    if (!map.has(price)) map.set(price, { quantity: 0, users: new Set() });
+    const lvl = map.get(price)!;
     lvl.quantity += o.quantity;
     lvl.users.add(o.user_id);
   }
@@ -76,6 +87,19 @@ export default function InternalsPage() {
   const [status, setStatus] = useState<AuctionStatus | null>(null);
   const [localSeconds, setLocalSeconds] = useState<number | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [result, setResult] = useState<AuctionResult | null>(null);
+  const prevStatusRef = useRef<string | null>(null);
+
+  const fetchResult = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auction/result`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.error) setResult(data);
+    } catch {
+      // silently fail
+    }
+  };
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -87,22 +111,31 @@ export default function InternalsPage() {
         setLastUpdated(new Date());
         if (data.status === "open") {
           setLocalSeconds(Math.floor(data.seconds_remaining));
+          setResult(null); // clear stale result when new auction opens
         } else {
           setLocalSeconds(null);
+          if (prevStatusRef.current === "open") fetchResult(); // transition → fetch
         }
+        prevStatusRef.current = data.status;
       } catch {
         // silently fail
       }
     };
 
     fetchStatus();
-    const interval = setInterval(fetchStatus, 3000);
+    const interval = setInterval(fetchStatus, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Smooth local countdown
+  // Smooth local countdown; fetch result 2s after hitting 0
   useEffect(() => {
-    if (localSeconds === null || localSeconds <= 0) return;
+    if (localSeconds === null || localSeconds <= 0) {
+      if (localSeconds === 0) {
+        const t = setTimeout(fetchResult, 2000);
+        return () => clearTimeout(t);
+      }
+      return;
+    }
     const t = setTimeout(
       () => setLocalSeconds((s) => (s !== null ? Math.max(0, s - 1) : null)),
       1000
@@ -111,11 +144,25 @@ export default function InternalsPage() {
   }, [localSeconds]);
 
   const isOpen = status?.status === "open";
+  useAuctionSimulation(isOpen);
   const book = status ? buildBook(status) : [];
   const crossingCount = book.filter((r) => r.isCrossing).length;
 
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  // Keep the crossing zone centred in the scroll container
+  useEffect(() => {
+    const container = tableScrollRef.current;
+    if (!container || book.length === 0) return;
+    const firstCrossingIdx = book.findIndex((r) => r.isCrossing);
+    const targetIdx = firstCrossingIdx >= 0 ? firstCrossingIdx : Math.floor(book.length / 2);
+    const ROW_HEIGHT = 37; // py-2.5 rows ≈ 37px
+    const scrollTop = targetIdx * ROW_HEIGHT - container.clientHeight / 2 + ROW_HEIGHT / 2;
+    container.scrollTop = Math.max(0, scrollTop);
+  }, [book]);
+
   return (
-    <div className="min-h-screen bg-[#232323] text-[#dcd5dd] px-8 py-6">
+    <div className="h-screen overflow-hidden bg-[#232323] text-[#dcd5dd] px-8 py-6">
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
@@ -169,10 +216,39 @@ export default function InternalsPage() {
 
       {/* Order book */}
       {!status || !isOpen ? (
-        <div className="flex items-center justify-center h-64 text-[#555] font-mono text-sm">
-          {status?.status === "closed"
-            ? "Auction closed — no active order book."
-            : "No active auction."}
+        <div className="flex flex-col items-center justify-center h-64 gap-6">
+          {result ? (
+            <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-2xl px-12 py-8 flex flex-col items-center gap-4">
+              <div className="text-xs font-mono text-[#888] uppercase tracking-widest">
+                Auction Closed
+              </div>
+              <div className="flex gap-16 items-end">
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-xs font-mono text-[#888]">Clearing Price</span>
+                  <span className="text-4xl font-mono font-bold text-[#dcd5dd]">
+                    ${result.clearing_price.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-xs font-mono text-[#888]">Volume Matched</span>
+                  <span className="text-4xl font-mono font-bold text-[#dcd5dd]">
+                    {result.matched_quantity.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+              <div className="text-xs font-mono text-[#555] mt-2">
+                {new Date(result.closed_at).toLocaleString("en-US", {
+                  timeZone: "America/New_York",
+                  dateStyle: "medium",
+                  timeStyle: "long",
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="text-[#555] font-mono text-sm">
+              {status?.status === "closed" ? "Auction closed." : "No active auction."}
+            </div>
+          )}
         </div>
       ) : (
         <>
@@ -187,26 +263,21 @@ export default function InternalsPage() {
             <table className="w-full text-xs font-mono">
               <thead>
                 <tr className="bg-[#2a2a2a] border-b border-[#3a3a3a]">
-                  {/* Bid side */}
-                  <th className="text-right py-3 px-4 text-[#888] font-normal w-1/6">
-                    Users
-                  </th>
-                  <th className="text-right py-3 px-4 text-green-400 font-normal w-1/6">
-                    Bid Qty
-                  </th>
-                  {/* Price */}
-                  <th className="text-center py-3 px-6 text-[#888] font-normal w-1/6">
-                    Price
-                  </th>
-                  {/* Ask side */}
-                  <th className="text-left py-3 px-4 text-red-400 font-normal w-1/6">
-                    Ask Qty
-                  </th>
-                  <th className="text-left py-3 px-4 text-[#888] font-normal w-1/6">
-                    Users
-                  </th>
+                  <th className="text-right py-3 px-4 text-[#888] font-normal w-1/6">Users</th>
+                  <th className="text-right py-3 px-4 text-green-400 font-normal w-1/6">Bid Qty</th>
+                  <th className="text-center py-3 px-6 text-[#888] font-normal w-1/6">Price</th>
+                  <th className="text-left py-3 px-4 text-red-400 font-normal w-1/6">Ask Qty</th>
+                  <th className="text-left py-3 px-4 text-[#888] font-normal w-1/6">Users</th>
                 </tr>
               </thead>
+            </table>
+            {/* Scrollable body — height fills remaining page space */}
+            <div
+              ref={tableScrollRef}
+              className="overflow-y-auto"
+              style={{ height: "calc(100vh - 300px)" }}
+            >
+              <table className="w-full text-xs font-mono">
               <tbody>
                 {book.map((row) => (
                   <tr
@@ -261,7 +332,8 @@ export default function InternalsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         </>
       )}
