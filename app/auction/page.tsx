@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import EthOrderBookHorizontal from "@/components/EthOrderBookHorizontal";
 import TradingViewChart from "@/components/TradingViewChart";
 
@@ -25,6 +25,26 @@ interface ApiOrder {
   wallet_address: string;
 }
 
+interface Trade {
+  trade_id: string;
+  buyer: string;
+  seller: string;
+  price: number;
+  quantity: number;
+  notional_usdc: number;
+  buyer_wallet: string;
+  seller_wallet: string;
+}
+
+interface AuctionResult {
+  auction_id: string;
+  clearing_price: number;
+  matched_quantity: number;
+  closed_at: string;
+  trades: Trade[];
+  unmatched: ApiOrder[];
+}
+
 interface SubmittedOrder {
   id: string;
   side: "buy" | "sell";
@@ -41,40 +61,62 @@ export default function AuctionPage() {
   const [walletAddress, setWalletAddress] = useState("");
   const [orders, setOrders] = useState<SubmittedOrder[]>([]);
   const [auctionStatus, setAuctionStatus] = useState<AuctionStatus | null>(null);
+  const [auctionResult, setAuctionResult] = useState<AuctionResult | null>(null);
   const [auctionDuration, setAuctionDuration] = useState("5");
   const [isStarting, setIsStarting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
-
-  // Local countdown updated by server polls
   const [localSeconds, setLocalSeconds] = useState<number | null>(null);
+  const prevStatusRef = useRef<string | null>(null);
 
-  // Poll auction status every 5s
+  const fetchResult = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auction/result`);
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.error) setAuctionResult(data);
+      }
+    } catch {
+      // silently fail
+    }
+  };
+
+  // Poll auction status every 5s; detect open→closed transition
   useEffect(() => {
     const fetchStatus = async () => {
       try {
         const res = await fetch(`${API_BASE}/auction/status`);
-        if (res.ok) {
-          const data: AuctionStatus = await res.json();
-          setAuctionStatus(data);
-          if (data.status === "open") {
-            setLocalSeconds(Math.floor(data.seconds_remaining));
-          } else {
-            setLocalSeconds(null);
-          }
+        if (!res.ok) return;
+        const data: AuctionStatus = await res.json();
+        setAuctionStatus(data);
+
+        if (data.status === "open") {
+          setLocalSeconds(Math.floor(data.seconds_remaining));
+        } else {
+          setLocalSeconds(null);
+          // Fetch result if we just transitioned from open → closed
+          if (prevStatusRef.current === "open") fetchResult();
         }
+        prevStatusRef.current = data.status;
       } catch {
         // silently fail
       }
     };
+
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // Smooth local countdown between server polls
+  // Smooth local countdown; attempt result fetch 2s after hitting 0
   useEffect(() => {
-    if (localSeconds === null || localSeconds <= 0) return;
+    if (localSeconds === null || localSeconds <= 0) {
+      if (localSeconds === 0) {
+        const t = setTimeout(fetchResult, 2000);
+        return () => clearTimeout(t);
+      }
+      return;
+    }
     const timer = setTimeout(
       () => setLocalSeconds((s) => (s !== null ? Math.max(0, s - 1) : null)),
       1000
@@ -97,6 +139,7 @@ export default function AuctionPage() {
 
   async function startAuction() {
     setIsStarting(true);
+    setAuctionResult(null);
     try {
       const res = await fetch(`${API_BASE}/auction/start`, {
         method: "POST",
@@ -110,11 +153,12 @@ export default function AuctionPage() {
           status: "open",
           end_time: data.end_time,
           seconds_remaining: parseFloat(auctionDuration) * 60,
-          order_count: prev?.order_count ?? 0,
-          buy_orders: prev?.buy_orders ?? [],
-          sell_orders: prev?.sell_orders ?? [],
+          order_count: 0,
+          buy_orders: [],
+          sell_orders: [],
         }));
         setLocalSeconds(Math.floor(parseFloat(auctionDuration) * 60));
+        prevStatusRef.current = "open";
       }
     } catch {
       // ignore
@@ -143,13 +187,7 @@ export default function AuctionPage() {
       const data = await res.json();
       if (data.order_id) {
         setOrders((prev) => [
-          {
-            id: data.order_id,
-            side,
-            price,
-            quantity,
-            placedAt: new Date().toLocaleTimeString(),
-          },
+          { id: data.order_id, side, price, quantity, placedAt: new Date().toLocaleTimeString() },
           ...prev,
         ]);
         setPrice("");
@@ -185,7 +223,6 @@ export default function AuctionPage() {
             Place Limit Order
           </h2>
 
-          {/* Identity inputs */}
           <div className="flex flex-col gap-2">
             <input
               type="text"
@@ -203,13 +240,10 @@ export default function AuctionPage() {
             />
           </div>
 
-          {/* Buy / Sell toggle */}
           <div className="flex rounded-lg overflow-hidden border border-[#3a3a3a]">
             <button
               className={`flex-1 py-2 text-xs font-mono font-bold transition-colors ${
-                side === "buy"
-                  ? "bg-green-700 text-white"
-                  : "bg-transparent text-[#888] hover:text-[#dcd5dd]"
+                side === "buy" ? "bg-green-700 text-white" : "bg-transparent text-[#888] hover:text-[#dcd5dd]"
               }`}
               onClick={() => setSide("buy")}
             >
@@ -217,9 +251,7 @@ export default function AuctionPage() {
             </button>
             <button
               className={`flex-1 py-2 text-xs font-mono font-bold transition-colors ${
-                side === "sell"
-                  ? "bg-red-700 text-white"
-                  : "bg-transparent text-[#888] hover:text-[#dcd5dd]"
+                side === "sell" ? "bg-red-700 text-white" : "bg-transparent text-[#888] hover:text-[#dcd5dd]"
               }`}
               onClick={() => setSide("sell")}
             >
@@ -229,70 +261,42 @@ export default function AuctionPage() {
 
           <form onSubmit={submitOrder} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-mono text-[#888]">
-                Limit Price (USD)
-              </label>
+              <label className="text-xs font-mono text-[#888]">Limit Price (USD)</label>
               <input
-                type="number"
-                step="0.1"
-                min="0"
-                placeholder="0.00"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                type="number" step="0.1" min="0" placeholder="0.00"
+                value={price} onChange={(e) => setPrice(e.target.value)}
                 className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg px-3 py-2 text-sm font-mono text-[#dcd5dd] placeholder-[#555] focus:outline-none focus:border-[#595759]"
               />
             </div>
-
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-mono text-[#888]">
-                Quantity (ETH)
-              </label>
+              <label className="text-xs font-mono text-[#888]">Quantity (ETH)</label>
               <input
-                type="number"
-                step="0.001"
-                min="0"
-                placeholder="0.000"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
+                type="number" step="0.001" min="0" placeholder="0.000"
+                value={quantity} onChange={(e) => setQuantity(e.target.value)}
                 className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg px-3 py-2 text-sm font-mono text-[#dcd5dd] placeholder-[#555] focus:outline-none focus:border-[#595759]"
               />
             </div>
-
             <div className="flex justify-between items-center py-2 border-t border-[#3a3a3a]">
               <span className="text-xs font-mono text-[#888]">Total</span>
               <span className="text-sm font-mono">${total}</span>
             </div>
-
-            {orderError && (
-              <p className="text-xs font-mono text-red-400">{orderError}</p>
-            )}
-
+            {orderError && <p className="text-xs font-mono text-red-400">{orderError}</p>}
             <button
               type="submit"
               disabled={isSubmitting || !isOpen}
               className={`w-full py-2.5 rounded-lg text-xs font-mono font-bold tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                side === "buy"
-                  ? "bg-green-700 hover:bg-green-600 text-white"
-                  : "bg-red-700 hover:bg-red-600 text-white"
+                side === "buy" ? "bg-green-700 hover:bg-green-600 text-white" : "bg-red-700 hover:bg-red-600 text-white"
               }`}
             >
-              {isSubmitting
-                ? "SUBMITTING..."
-                : !isOpen
-                ? "AUCTION NOT OPEN"
-                : side === "buy"
-                ? "SUBMIT BUY ORDER"
-                : "SUBMIT SELL ORDER"}
+              {isSubmitting ? "SUBMITTING..." : !isOpen ? "AUCTION NOT OPEN" : side === "buy" ? "SUBMIT BUY ORDER" : "SUBMIT SELL ORDER"}
             </button>
           </form>
         </div>
       </div>
 
-      {/* Auction details + User orders */}
-      <div
-        className="shrink-0 grid grid-cols-2 gap-4 px-6 pb-4"
-        style={{ height: "180px" }}
-      >
+      {/* Auction details + Orders / Results */}
+      <div className="shrink-0 grid grid-cols-2 gap-4 px-6 pb-4" style={{ height: "180px" }}>
+
         {/* Auction details */}
         <div className="bg-[#2a2a2a] rounded-xl border border-[#3a3a3a] p-4">
           <div className="flex items-center justify-between mb-3">
@@ -301,11 +305,8 @@ export default function AuctionPage() {
             </h2>
             <div className="flex items-center gap-2">
               <input
-                type="number"
-                min="1"
-                max="60"
-                value={auctionDuration}
-                onChange={(e) => setAuctionDuration(e.target.value)}
+                type="number" min="1" max="60"
+                value={auctionDuration} onChange={(e) => setAuctionDuration(e.target.value)}
                 className="w-12 bg-[#1a1a1a] border border-[#3a3a3a] rounded px-2 py-0.5 text-xs font-mono text-[#dcd5dd] focus:outline-none text-center"
               />
               <span className="text-xs font-mono text-[#888]">min</span>
@@ -323,17 +324,11 @@ export default function AuctionPage() {
               ["Status", auctionStatus?.status?.toUpperCase() ?? "—"],
               ["Orders", auctionStatus?.order_count?.toString() ?? "—"],
               ["Time Remaining", timeDisplay],
-              ["Clearing Price", "—"],
+              ["Clearing Price", auctionResult ? `$${auctionResult.clearing_price}` : "—"],
             ] as [string, string][]).map(([label, value]) => (
               <div key={label} className="flex flex-col gap-0.5">
                 <span className="text-xs font-mono text-[#888]">{label}</span>
-                <span
-                  className={`text-sm font-mono ${
-                    label === "Status" && isOpen
-                      ? "text-green-400"
-                      : "text-[#dcd5dd]"
-                  }`}
-                >
+                <span className={`text-sm font-mono ${label === "Status" && isOpen ? "text-green-400" : label === "Clearing Price" && auctionResult ? "text-[#dcd5dd] font-bold" : "text-[#dcd5dd]"}`}>
                   {value}
                 </span>
               </div>
@@ -341,42 +336,73 @@ export default function AuctionPage() {
           </div>
         </div>
 
-        {/* User orders */}
+        {/* Results panel (after close) or Your Orders (during/before) */}
         <div className="bg-[#2a2a2a] rounded-xl border border-[#3a3a3a] p-4 overflow-y-auto">
-          <h2 className="text-xs font-mono font-bold tracking-widest uppercase mb-3">
-            Your Orders
-          </h2>
-          {orders.length === 0 ? (
-            <p className="text-xs font-mono text-[#555]">No orders placed.</p>
+          {auctionResult ? (
+            <>
+              <h2 className="text-xs font-mono font-bold tracking-widest uppercase mb-3 text-[#dcd5dd]">
+                Auction Result
+                <span className="ml-2 text-[#888] font-normal normal-case">
+                  {auctionResult.matched_quantity} ETH matched @ ${auctionResult.clearing_price}
+                </span>
+              </h2>
+              {auctionResult.trades.length === 0 ? (
+                <p className="text-xs font-mono text-[#555]">No trades matched.</p>
+              ) : (
+                <table className="w-full text-xs font-mono">
+                  <thead>
+                    <tr className="text-[#888] border-b border-[#3a3a3a]">
+                      <th className="text-left pb-2">Buyer</th>
+                      <th className="text-left pb-2">Seller</th>
+                      <th className="text-right pb-2">Qty</th>
+                      <th className="text-right pb-2">Notional</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auctionResult.trades.map((t) => (
+                      <tr key={t.trade_id} className="border-b border-[#2f2f2f]">
+                        <td className="py-1.5 text-green-400">{t.buyer}</td>
+                        <td className="py-1.5 text-red-400">{t.seller}</td>
+                        <td className="text-right py-1.5">{t.quantity}</td>
+                        <td className="text-right py-1.5">${t.notional_usdc.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
           ) : (
-            <table className="w-full text-xs font-mono">
-              <thead>
-                <tr className="text-[#888] border-b border-[#3a3a3a]">
-                  <th className="text-left pb-2">Side</th>
-                  <th className="text-right pb-2">Price</th>
-                  <th className="text-right pb-2">Qty</th>
-                  <th className="text-right pb-2">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((o) => (
-                  <tr key={o.id} className="border-b border-[#2f2f2f]">
-                    <td
-                      className={`py-1.5 font-bold ${
-                        o.side === "buy" ? "text-green-400" : "text-red-400"
-                      }`}
-                    >
-                      {o.side.toUpperCase()}
-                    </td>
-                    <td className="text-right py-1.5">${o.price}</td>
-                    <td className="text-right py-1.5">{o.quantity}</td>
-                    <td className="text-right py-1.5 text-[#888]">
-                      {o.placedAt}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <>
+              <h2 className="text-xs font-mono font-bold tracking-widest uppercase mb-3">
+                Your Orders
+              </h2>
+              {orders.length === 0 ? (
+                <p className="text-xs font-mono text-[#555]">No orders placed.</p>
+              ) : (
+                <table className="w-full text-xs font-mono">
+                  <thead>
+                    <tr className="text-[#888] border-b border-[#3a3a3a]">
+                      <th className="text-left pb-2">Side</th>
+                      <th className="text-right pb-2">Price</th>
+                      <th className="text-right pb-2">Qty</th>
+                      <th className="text-right pb-2">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.map((o) => (
+                      <tr key={o.id} className="border-b border-[#2f2f2f]">
+                        <td className={`py-1.5 font-bold ${o.side === "buy" ? "text-green-400" : "text-red-400"}`}>
+                          {o.side.toUpperCase()}
+                        </td>
+                        <td className="text-right py-1.5">${o.price}</td>
+                        <td className="text-right py-1.5">{o.quantity}</td>
+                        <td className="text-right py-1.5 text-[#888]">{o.placedAt}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
           )}
         </div>
       </div>
