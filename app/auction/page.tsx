@@ -86,7 +86,7 @@ export default function AuctionPage() {
       const res = await fetch(`${API_BASE}/auction/result`);
       if (res.ok) {
         const data = await res.json();
-        if (!data.error) setAuctionResult(data);
+        if (data.clearing_price !== undefined && data.matched_quantity !== undefined) setAuctionResult(data);
       }
     } catch {
       // silently fail

@@ -102,7 +102,7 @@ export default function InternalsPage() {
       const res = await fetch(`${API_BASE}/auction/result`);
       if (!res.ok) return;
       const data = await res.json();
-      if (!data.error) setResult(data);
+      if (data.clearing_price !== undefined && data.matched_quantity !== undefined) setResult(data);
     } catch {
       // silently fail
     }
@@ -121,7 +121,8 @@ export default function InternalsPage() {
           setResult(null); // clear stale result when new auction opens
         } else {
           setLocalSeconds(null);
-          if (prevStatusRef.current === "open") fetchResult(); // transition → fetch
+          // Fetch result on transition AND keep retrying until we have it
+          if (prevStatusRef.current === "open" || data.status === "closed") fetchResult();
         }
         prevStatusRef.current = data.status;
       } catch {

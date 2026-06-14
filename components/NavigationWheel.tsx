@@ -68,7 +68,7 @@ export default function NavigationWheel() {
             await fetch(`${API_BASE}/auction/start`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ duration_minutes: 5 }),
+              body: JSON.stringify({ duration_minutes: 2 }),
             });
           }
         }
